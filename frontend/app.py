@@ -7,7 +7,7 @@ import os
 app = Flask(__name__)
 
 # Load song dataset
-df = pd.read_csv('data/cleaned_songs.csv')
+df = pd.read_csv('data/dataset.csv')
 
 def normalize(text):
     return re.sub(r"[^\w\s]", "", text.lower())
