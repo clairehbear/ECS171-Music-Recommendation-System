@@ -4,7 +4,8 @@ import re
 import csv
 import os
 
-app = Flask(__name__)
+import model
+app = Flask(__name__, static_folder='static', static_url_path='/static')
 
 # Load song dataset
 df = pd.read_csv('data/dataset.csv')
