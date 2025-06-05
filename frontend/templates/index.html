@@ -1,17 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <title>Spotify Track Search</title>
     <script src="https://unpkg.com/htmx.org@1.9.5"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
-    <link rel="shortcut icon" href="/static/favicon.ico" type="image/x-icon">
-    <link rel="apple-touch-icon" href="/static/favicon.ico">
     <link rel="apple-touch-icon" sizes="180x180" href="/static/favicon.ico">
-    <link rel="apple-touch-icon" sizes="32x32" href="/static/favicon.ico">
-    <link rel="apple-touch-icon" sizes="16x16" href="/static/favicon.ico">
+
     <style>
         body {
             background: linear-gradient(to bottom, #070707, #1a1a1a);
@@ -28,20 +24,12 @@
             width: 10vw;
             height: auto;
             margin-bottom: 3vh;
-        }
-
-        img {
             animation: rotate 30s linear infinite;
         }
 
         @keyframes rotate {
-            from {
-                transform: rotate(0deg);
-            }
-
-            to {
-                transform: rotate(360deg);
-            }
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
         }
 
         .grid-item.m-5 {
@@ -55,10 +43,6 @@
             width: 8px;
         }
 
-        .grid-item.m-5::-webkit-scrollbar-track {
-            background: #222222;
-        }
-
         .grid-item.m-5::-webkit-scrollbar-thumb {
             background: #e6e6e6;
             border-radius: 4px;
@@ -68,58 +52,75 @@
             background: #1ed760;
         }
     </style>
-
 </head>
 
 <body class="min-h-screen flex justify-center pt-20 text-white">
-    <div class="text-center  w-full">
-
+    <div class="text-center w-full">
         <div class="grid grid-cols-2">
             <div class="grid-item col-span-2">
                 <center>
-                    <img width="20vw" class="p-3" src="/static/SpotifySearchLogo.png" alt="SpotifySearcher Logo">
+                    <img class="p-3" src="/static/SpotifySearchLogo.png" alt="SpotifySearcher Logo">
                 </center>
             </div>
+
+            <!-- Search Box -->
             <div class="m-5 grid-item">
-
-
                 <h3 class="text-2xl font-bold mb-4">Search Spotify Tracks</h3>
-
                 <input type="text" name="q" placeholder="Search by track or artist…"
-                    class="w-4/5 p-2 border border-gray-300 rounded-xl mb-4 text-black" hx-get="/search"
-                    hx-trigger="keyup changed delay:300ms" hx-target="#results" hx-swap="innerHTML">
-
-                <div id="results" class="space-y-2 mb-8">
-                    <!-- Search results will appear here -->
-                </div>
+                    class="w-4/5 p-2 border border-gray-300 rounded-xl mb-4 text-black"
+                    hx-get="/search" hx-trigger="keyup changed delay:300ms"
+                    hx-target="#results" hx-swap="innerHTML">
+                <div id="results" class="space-y-2 mb-8"></div>
             </div>
-            <div class="m-5 grid-item">
 
+            <!-- Favorites List -->
+            <div class="m-5 grid-item">
                 <h2 class="text-xl font-semibold mb-2">Favorites</h2>
+
                 <ul id="favorites" class="space-y-1 text-green-200">
-                    <!-- Favorites will appear here -->
+                    {% for fav in favorites %}
+                        <li class="flex justify-between items-center">
+                            <span>{{ fav.track }} - {{ fav.artist }}</span>
+                            <button class="ml-2 text-red-400 hover:text-red-600"
+                                    data-remove
+                                    data-track="{{ fav.track }}"
+                                    data-artist="{{ fav.artist }}">
+                                ×
+                            </button>
+                        </li>
+                    {% endfor %}
                 </ul>
+
+                <button style="background-color: #222222; padding: 7px; margin-top: 10px; border-radius: 3px;" id="clear-all"
+                        class="text-sm text-red-300 hover:text-red-500 mb-2">
+                    Clear All
+                </button>
             </div>
         </div>
     </div>
 
     <script>
+        // Add favorite
         document.addEventListener('submit', function (e) {
             if (e.target.matches('form[data-favorite]')) {
-                e.preventDefault(); // stop actual submission
+                e.preventDefault();
 
                 const track = e.target.dataset.track;
                 const artist = e.target.dataset.artist;
                 const song = `${track} - ${artist}`;
                 const list = document.getElementById('favorites');
 
-                if ([...list.children].some(li => li.textContent === song)) return;
+                if ([...list.children].some(li => li.textContent.includes(song))) return;
 
                 const li = document.createElement('li');
-                li.textContent = song;
+                li.className = 'flex justify-between items-center';
+                li.innerHTML = `
+                    <span>${song}</span>
+                    <button class="ml-2 text-red-400 hover:text-red-600"
+                            data-remove data-track="${track}" data-artist="${artist}">×</button>
+                `;
                 list.appendChild(li);
 
-                // Submit form via fetch
                 fetch('/add_favorite', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -127,7 +128,35 @@
                 });
             }
         });
+
+        // Remove single favorite
+        document.addEventListener('click', function (e) {
+            if (e.target.matches('button[data-remove]')) {
+                const track = e.target.dataset.track;
+                const artist = e.target.dataset.artist;
+
+                fetch('/remove_favorite', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams({ track, artist })
+                }).then(res => {
+                    if (res.ok) {
+                        e.target.closest('li')?.remove();
+                    }
+                });
+            }
+        });
+
+        // Clear all favorites
+        document.getElementById('clear-all')?.addEventListener('click', function () {
+            fetch('/clear_favorites', {
+                method: 'POST'
+            }).then(res => {
+                if (res.ok) {
+                    document.getElementById('favorites').innerHTML = '';
+                }
+            });
+        });
     </script>
 </body>
-
 </html>

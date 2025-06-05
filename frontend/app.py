@@ -4,7 +4,6 @@ import re
 import csv
 import os
 
-import model
 app = Flask(__name__, static_folder='static', static_url_path='/static')
 
 # Load song dataset
@@ -16,12 +15,17 @@ def normalize(text):
 df['track_name_normalized'] = df['track_name'].fillna('').apply(normalize)
 df['artists_normalized'] = df['artists'].fillna('').apply(normalize)
 
-# Store favorites in memory
+# Load favorites from CSV if it exists
 FAVORITES = []
+FAVORITES_FILE = 'data/favorites.csv'
+if os.path.exists(FAVORITES_FILE):
+    with open(FAVORITES_FILE, 'r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        FAVORITES = list(reader)
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html', favorites=FAVORITES)
 
 @app.route('/search', methods=['GET'])
 def search_track():
@@ -63,19 +67,46 @@ def add_favorite():
     if not track or not artist:
         return "Missing data", 400
 
-    # Avoid duplicates
     if any(fav['track'] == track and fav['artist'] == artist for fav in FAVORITES):
         return "Already added", 200
 
     FAVORITES.append({'track': track, 'artist': artist})
 
-    # Overwrite the CSV with current list
-    with open('data/favorites.csv', 'w', newline='', encoding='utf-8') as f:
+    with open(FAVORITES_FILE, 'w', newline='', encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=['track', 'artist'])
         writer.writeheader()
         writer.writerows(FAVORITES)
 
     return "Added", 200
+
+@app.route('/remove_favorite', methods=['POST'])
+def remove_favorite():
+    track = request.form.get('track')
+    artist = request.form.get('artist')
+
+    global FAVORITES
+    FAVORITES = [
+        fav for fav in FAVORITES
+        if not (fav['track'] == track and fav['artist'] == artist)
+    ]
+
+    with open(FAVORITES_FILE, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=['track', 'artist'])
+        writer.writeheader()
+        writer.writerows(FAVORITES)
+
+    return "Removed", 200
+
+@app.route('/clear_favorites', methods=['POST'])
+def clear_favorites():
+    global FAVORITES
+    FAVORITES = []
+
+    with open(FAVORITES_FILE, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=['track', 'artist'])
+        writer.writeheader()
+
+    return "Cleared", 200
 
 if __name__ == '__main__':
     app.run(debug=True)
