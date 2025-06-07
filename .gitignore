@@ -1,0 +1,5 @@
+.venv
+__pycache__/
+data/clean_data.py
+data/cleaned_songs.csv
+frontend/data/favorites.csv
