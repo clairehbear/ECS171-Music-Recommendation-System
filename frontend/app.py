@@ -317,6 +317,17 @@ def get_recommendations():
         <div style="border:2px solid {genre_colors[song['track_genre']]} !important" class='p-2 border rounded-xl flex justify-between items-center'>
             <span>{song['track_name']} - {song['artists']}</span>
             <span class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-sm">{song['track_genre']}</span>
+
+             <form 
+                    data-favorite
+                    data-track="{song['track_name']}" 
+                    data-artist="{song['artists']}">
+                    <button 
+                        type="submit"
+                        class='px-2 py-1 rounded favBtn'>
+                        ★
+                    </button>
+                </form>
         </div>
         """
 

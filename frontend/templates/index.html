@@ -49,6 +49,8 @@
             background-color: #1ed760;
             color: black;
             font-size: 20px !important;
+            transition: background-color 0.3s;
+
         }
 
         .rec-btn {
@@ -61,8 +63,12 @@
             transition: background-color 0.3s;
         }
 
+        .favBtn:hover {
+            background-color: #ebfff2;
+        }
+
         .rec-btn:hover {
-            background-color: #1db954;
+            background-color: #ebfff2;
         }
 
         .htmx-indicator {
@@ -77,6 +83,10 @@
         .htmx-request.htmx-indicator {
             opacity: 1;
         }
+
+        #mainTitle {
+            rotate: -2.5deg;
+        }
     </style>
 </head>
 
@@ -85,7 +95,7 @@
         <div class="grid grid-cols-3">
             <div class="grid-item col-span-3 flex justify-center items-center mb-8">
                 <img class="p-3 rotating-logo" src="/static/SpotifySearchLogo.png">
-                <img class="p-3 h-48" src="/static/website_title.png" alt="Website Title">
+                <img class="p-3 h-48" id="mainTitle" src="/static/website_title.png" alt="Website Title">
                 <img class="p-3 rotating-logo" src="/static/SpotifySearchLogo.png">
             </div>
 
