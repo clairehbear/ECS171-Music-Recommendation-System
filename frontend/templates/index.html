@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>Spotify Track Search</title>
@@ -28,8 +29,13 @@
         }
 
         @keyframes rotate {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         .grid-item.m-5 {
@@ -39,31 +45,45 @@
             padding: 15px;
         }
 
-        .grid-item.m-5::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .grid-item.m-5::-webkit-scrollbar-thumb {
-            background: #e6e6e6;
-            border-radius: 4px;
-        }
-
-        .grid-item.m-5::-webkit-scrollbar-thumb:hover {
-            background: #1ed760;
-        }
-
         .favBtn {
             background-color: #1ed760;
             color: black;
             font-size: 20px !important;
+        }
+
+        .rec-btn {
+            background-color: #1ed760;
+            color: black;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-weight: bold;
+            margin: 10px 0;
+            transition: background-color 0.3s;
+        }
+
+        .rec-btn:hover {
+            background-color: #1db954;
+        }
+
+        .htmx-indicator {
+            opacity: 0;
+            transition: opacity 500ms ease-in;
+        }
+
+        .htmx-request .htmx-indicator {
+            opacity: 1;
+        }
+
+        .htmx-request.htmx-indicator {
+            opacity: 1;
         }
     </style>
 </head>
 
 <body class="min-h-screen flex justify-center pt-20 text-white">
     <div class="text-center w-full">
-        <div class="grid grid-cols-2">
-            <div class="grid-item col-span-2">
+        <div class="grid grid-cols-3">
+            <div class="grid-item col-span-3">
                 <center>
                     <img class="p-3" src="/static/SpotifySearchLogo.png" alt="SpotifySearcher Logo">
                     <img class="p-3" src="/static/SpotifySearchLogo.png" alt="SpotifySearcher Logo">
@@ -71,37 +91,57 @@
             </div>
 
             <!-- Search Box -->
-            <div class="m-5 grid-item">
+            <div class="m-5 p-3 grid-item rounded-lg">
                 <h3 class="text-2xl font-bold mb-4">Search Spotify Tracks</h3>
                 <input type="text" name="q" placeholder="Search by track or artist…"
-                    class="w-4/5 p-2 border border-gray-300 rounded-xl mb-4 text-black"
-                    hx-get="/search" hx-trigger="keyup changed delay:300ms"
-                    hx-target="#results" hx-swap="innerHTML">
+                    class="w-4/5 p-2 border border-gray-300 rounded-xl mb-4 text-black" hx-get="/search"
+                    hx-trigger="keyup changed delay:300ms" hx-target="#results" hx-swap="innerHTML">
                 <div id="results" class="space-y-2 mb-8"></div>
             </div>
 
             <!-- Favorites List -->
-            <div class="m-5 grid-item">
+            <div class="m-5 p-3 grid-item flex flex-col rounded-lg">
                 <h2 class="text-xl font-semibold mb-2">Favorites</h2>
 
-                <ul id="favorites" class="space-y-1 text-green-200">
+                <ul id="favorites" class="space-y-1 text-green-200 flex-grow">
                     {% for fav in favorites %}
-                        <li class="flex justify-between items-center">
-                            <span>{{ fav.track }} - {{ fav.artist }}</span>
-                            <button class="ml-2 text-red-400 hover:text-red-600"
-                                    data-remove
-                                    data-track="{{ fav.track }}"
-                                    data-artist="{{ fav.artist }}">
-                                ×
-                            </button>
-                        </li>
+                    <li class="flex justify-between items-center">
+                        <span>{{ fav.track }} - {{ fav.artist }}</span>
+                        <button class="ml-2 text-red-400 hover:text-red-600" data-remove data-track="{{ fav.track }}"
+                            data-artist="{{ fav.artist }}">
+                            ×
+                        </button>
+                    </li>
                     {% endfor %}
                 </ul>
 
-                <button style="background-color: #222222; padding: 7px; margin-top: 10px; border-radius: 3px;" id="clear-all"
-                        class="text-sm text-red-300 hover:text-red-500 mb-2">
+                <button style="background-color: #222222; padding: 7px; border-radius: 3px;" id="clear-all"
+                    class="text-sm text-red-300 hover:text-red-500 mt-auto">
                     Clear All
                 </button>
+            </div>
+
+            <!-- Recommendations Section -->
+            <div class="m-5 p-3 grid-item rounded-lg">
+                <h2 class="text-xl font-semibold mb-2">Recommendations</h2>
+                <div id="recommendations" class="space-y-2">
+                    <div class="text-gray-400 italic text-center p-4">
+                        Add some songs to your favorites and click "Get My Song Recommendations" to discover new music!
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recommendation Button -->
+        <div class="mt-4">
+            <button hx-post="/get_recommendations" hx-target="#recommendations" hx-swap="innerHTML"
+                hx-indicator="#rec-loading" class="rec-btn">
+                Get My Song Recommendations
+            </button>
+            <div id="rec-loading" class="htmx-indicator text-green-300 text-sm mt-2">
+                <div class="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-green-300 mr-2">
+                </div>
+                Analyzing your taste...
             </div>
         </div>
     </div>
@@ -161,9 +201,16 @@
             }).then(res => {
                 if (res.ok) {
                     document.getElementById('favorites').innerHTML = '';
+                    // Clear recommendations too
+                    document.getElementById('recommendations').innerHTML = `
+                        <div class="text-gray-400 italic text-center p-4">
+                            Add some songs to your favorites and click "Get My Song Recommendations" to discover new music!
+                        </div>
+                    `;
                 }
             });
         });
     </script>
 </body>
+
 </html>

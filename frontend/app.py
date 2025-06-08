@@ -3,19 +3,44 @@ import pandas as pd
 import re
 import csv
 import os
+import numpy as np
+import pickle
+from sklearn.preprocessing import StandardScaler
 
-app = Flask(__name__, static_folder='static', static_url_path='/static')
+app = Flask(__name__, static_folder="static", static_url_path="/static")
 
 # Load song dataset
-df = pd.read_csv('data/dataset.csv')
+df = pd.read_csv("data/dataset.csv")
+# Remove duplicates based on track name and artist
+df = df.drop_duplicates(subset=["track_name", "artists"], keep="first")
+df = df.reset_index(drop=True)  # Reset index after removing duplicates
+
+# Load cosine similarity model
+with open("../backend/models/cos.pkl", "rb") as file:
+    cos_model = pickle.load(file)
+
+# Standardize data for recommendations
+scaler = StandardScaler()
+features = [
+    "popularity",
+    "danceability",
+    "loudness",
+    "acousticness",
+    "valence",
+    "tempo",
+]
+X_scaled = scaler.fit_transform(df[features])
+cos_scaled = X_scaled / np.linalg.norm(X_scaled, axis=1)[:, np.newaxis]
+
 
 def normalize(text):
     return re.sub(r"[^\w\s]", "", text.lower())
 
-df['track_name_normalized'] = df['track_name'].fillna('').apply(normalize)
-df['artists_normalized'] = df['artists'].fillna('').apply(normalize)
 
-# Load favorites from CSV if it exists
+df["track_name_normalized"] = df["track_name"].fillna("").apply(normalize)
+df["artists_normalized"] = df["artists"].fillna("").apply(normalize)
+
+# If exists, load favorites from CSV
 FAVORITES = []
 genre_colors = {
     "acoustic": "#4E8C8A",
@@ -131,103 +156,172 @@ genre_colors = {
     "trance": "#7B68EE",
     "trip-hop": "#9932CC",
     "turkish": "#E30A17",
-    "world-music": "#32CD32"
+    "world-music": "#32CD32",
 }
 
 
-FAVORITES_FILE = 'data/favorites.csv'
+FAVORITES_FILE = "data/favorites.csv"
 if os.path.exists(FAVORITES_FILE):
-    with open(FAVORITES_FILE, 'r', encoding='utf-8') as f:
+    with open(FAVORITES_FILE, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         FAVORITES = list(reader)
 
-@app.route('/')
-def index():
-    return render_template('index.html', favorites=FAVORITES)
 
-@app.route('/search', methods=['GET'])
+@app.route("/")
+def index():
+    return render_template("index.html", favorites=FAVORITES)
+
+
+@app.route("/search", methods=["GET"])
 def search_track():
-    query = normalize(request.args.get('q', ''))
+    query = normalize(request.args.get("q", ""))
 
     if not query or len(query) < 2:
         return ""
 
-    track_matches = df['track_name_normalized'].str.contains(query, na=False)
-    artist_matches = df['artists_normalized'].str.contains(query, na=False)
+    track_matches = df["track_name_normalized"].str.contains(query, na=False)
+    artist_matches = df["artists_normalized"].str.contains(query, na=False)
 
-    results = df[track_matches | artist_matches].head(6)
+    results = df[track_matches | artist_matches].head(10)
 
-    return  (
-        ''.join(
+    return "".join(
         f"""
         <div style="border:2px solid {genre_colors[row['track_genre']]} !important" class='p-2 border rounded-xl  flex justify-between items-center'>
             <span>{row['track_name']} - {row['artists']}</span>
-            <span>Genre: {row['track_genre']}</span>
+            <div class="flex items-center gap-4">
+                <span class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-sm">{row['track_genre']}</span>
 
-            <form 
-                data-favorite
-                data-track="{row['track_name']}" 
-                data-artist="{row['artists']}">
-                <button 
-                    type="submit"
-                    class='ml-4   px-2 py-1 rounded favBtn'>
-                    ★
-                </button>
-            </form>
+                <form 
+                    data-favorite
+                    data-track="{row['track_name']}" 
+                    data-artist="{row['artists']}">
+                    <button 
+                        type="submit"
+                        class='px-2 py-1 rounded favBtn'>
+                        ★
+                    </button>
+                </form>
+            </div>
         </div>
         """
         for _, row in results.iterrows()
     )
-    )
 
-@app.route('/add_favorite', methods=['POST'])
+
+@app.route("/add_favorite", methods=["POST"])
 def add_favorite():
-    track = request.form.get('track')
-    artist = request.form.get('artist')
+    track = request.form.get("track")
+    artist = request.form.get("artist")
 
     if not track or not artist:
         return "Missing data", 400
 
-    if any(fav['track'] == track and fav['artist'] == artist for fav in FAVORITES):
+    if any(fav["track"] == track and fav["artist"] == artist for fav in FAVORITES):
         return "Already added", 200
 
-    FAVORITES.append({'track': track, 'artist': artist})
+    FAVORITES.append({"track": track, "artist": artist})
 
-    with open(FAVORITES_FILE, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=['track', 'artist'])
+    with open(FAVORITES_FILE, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=["track", "artist"])
         writer.writeheader()
         writer.writerows(FAVORITES)
 
     return "Added", 200
 
-@app.route('/remove_favorite', methods=['POST'])
+
+@app.route("/remove_favorite", methods=["POST"])
 def remove_favorite():
-    track = request.form.get('track')
-    artist = request.form.get('artist')
+    track = request.form.get("track")
+    artist = request.form.get("artist")
 
     global FAVORITES
     FAVORITES = [
-        fav for fav in FAVORITES
-        if not (fav['track'] == track and fav['artist'] == artist)
+        fav
+        for fav in FAVORITES
+        if not (fav["track"] == track and fav["artist"] == artist)
     ]
 
-    with open(FAVORITES_FILE, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=['track', 'artist'])
+    with open(FAVORITES_FILE, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=["track", "artist"])
         writer.writeheader()
         writer.writerows(FAVORITES)
 
     return "Removed", 200
 
-@app.route('/clear_favorites', methods=['POST'])
+
+@app.route("/clear_favorites", methods=["POST"])
 def clear_favorites():
     global FAVORITES
     FAVORITES = []
 
-    with open(FAVORITES_FILE, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=['track', 'artist'])
+    with open(FAVORITES_FILE, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=["track", "artist"])
         writer.writeheader()
 
     return "Cleared", 200
 
-if __name__ == '__main__':
+
+@app.route("/get_recommendations", methods=["POST"])
+def get_recommendations():
+    if not FAVORITES:
+        return """
+        <div class="text-gray-400 italic text-center p-4">
+            Add some songs to your favorites and click "Get My Song Recommendations" to discover new music!
+        </div>
+        """
+
+    # Get indices of favorite songs
+    playlist_indices = []
+    for fav in FAVORITES:
+        matches = df[
+            (df["track_name"] == fav["track"]) & (df["artists"] == fav["artist"])
+        ]
+        if not matches.empty:
+            playlist_indices.append(matches.index[0])
+
+    if not playlist_indices:
+        return """
+        <div class="text-gray-400 italic text-center p-4">
+            Could not find your favorite songs in the database. Try adding different songs.
+        </div>
+        """
+
+    # Get clusters for favorite songs
+    playlist_clusters = cos_model.predict(cos_scaled[playlist_indices])
+    majority_cluster = np.argmax(np.bincount(playlist_clusters))
+
+    # Get indices of songs in same cluster
+    cluster_indices = df.index[cos_model.predict(cos_scaled) == majority_cluster]
+
+    # Compute correlation scores for each song in cluster
+    song_scores = []
+    for song_idx in cluster_indices:
+        score = float("inf")
+        for liked_song_idx in playlist_indices:
+            correlation = np.corrcoef(cos_scaled[song_idx], cos_scaled[liked_song_idx])[
+                0, 1
+            ]
+            score = min(score, 1 - correlation)  # Convert correlation to distance
+        song_scores.append(score)
+
+    # top 10 recommendations
+    top_k = 10
+    song_scores = np.array(song_scores)
+    most_similar = np.argpartition(song_scores, top_k)[:top_k]
+    recommended_indices = cluster_indices[most_similar]
+    recommended_songs = df.iloc[recommended_indices]
+
+    recommendations_html = ""
+    for _, song in recommended_songs.iterrows():
+        recommendations_html += f"""
+        <div style="border:2px solid {genre_colors[song['track_genre']]} !important" class='p-2 border rounded-xl flex justify-between items-center'>
+            <span>{song['track_name']} - {song['artists']}</span>
+            <span class="bg-gray-200 text-gray-700 px-2 py-1 rounded text-sm">{song['track_genre']}</span>
+        </div>
+        """
+
+    return recommendations_html
+
+
+if __name__ == "__main__":
     app.run(debug=True)
