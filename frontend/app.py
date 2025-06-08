@@ -307,12 +307,22 @@ def get_recommendations():
     # top 10 recommendations
     top_k = 10
     song_scores = np.array(song_scores)
-    most_similar = np.argpartition(song_scores, top_k)[:top_k]
+    # include more songs
+    most_similar = np.argpartition(song_scores, top_k)[: top_k * 3]
     recommended_indices = cluster_indices[most_similar]
     recommended_songs = df.iloc[recommended_indices]
 
+    # exclude songs already in favorites
+    favorite_set = set((fav["track"], fav["artist"]) for fav in FAVORITES)
+    filtered_songs = recommended_songs[
+        ~recommended_songs.apply(
+            lambda row: (row["track_name"], row["artists"]) in favorite_set, axis=1
+        )
+    ]
+    filtered_songs = filtered_songs.head(top_k)
+
     recommendations_html = ""
-    for _, song in recommended_songs.iterrows():
+    for _, song in filtered_songs.iterrows():
         recommendations_html += f"""
         <div style="border:2px solid {genre_colors[song['track_genre']]} !important" class='p-2 border rounded-xl flex justify-between items-center'>
             <span>{song['track_name']} - {song['artists']}</span>
