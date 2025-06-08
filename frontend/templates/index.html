@@ -21,7 +21,7 @@
             padding: 20px;
         }
 
-        img {
+        .rotating-logo {
             width: 7vw;
             height: auto;
             margin-bottom: 3vh;
@@ -40,7 +40,7 @@
 
         .grid-item.m-5 {
             background-color: #222222;
-            overflow-y: scroll;
+            overflow-y: auto;
             height: 40vh;
             padding: 15px;
         }
@@ -83,11 +83,10 @@
 <body class="min-h-screen flex justify-center pt-20 text-white">
     <div class="text-center w-full">
         <div class="grid grid-cols-3">
-            <div class="grid-item col-span-3">
-                <center>
-                    <img class="p-3" src="/static/SpotifySearchLogo.png" alt="SpotifySearcher Logo">
-                    <img class="p-3" src="/static/SpotifySearchLogo.png" alt="SpotifySearcher Logo">
-                </center>
+            <div class="grid-item col-span-3 flex justify-center items-center mb-8">
+                <img class="p-3 rotating-logo" src="/static/SpotifySearchLogo.png">
+                <img class="p-3 h-48" src="/static/website_title.png" alt="Website Title">
+                <img class="p-3 rotating-logo" src="/static/SpotifySearchLogo.png">
             </div>
 
             <!-- Search Box -->
@@ -141,7 +140,7 @@
             <div id="rec-loading" class="htmx-indicator text-green-300 text-sm mt-2">
                 <div class="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-green-300 mr-2">
                 </div>
-                Analyzing your taste...
+                Getting your recommendations...
             </div>
         </div>
     </div>
