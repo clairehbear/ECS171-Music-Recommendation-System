@@ -308,7 +308,7 @@ def get_recommendations():
     top_k = 10
     song_scores = np.array(song_scores)
     # include more songs
-    most_similar = np.argpartition(song_scores, top_k)[: top_k * 3]
+    most_similar = np.argsort(song_scores)[len(FAVORITES):len(FAVORITES) + top_k]
     recommended_indices = cluster_indices[most_similar]
     recommended_songs = df.iloc[recommended_indices]
 
